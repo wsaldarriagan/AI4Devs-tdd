@@ -1,7 +1,4 @@
 import { PrismaClient, Prisma } from '@prisma/client';
-import { Education } from './Education';
-import { WorkExperience } from './WorkExperience';
-import { Resume } from './Resume';
 
 const prisma = new PrismaClient();
 
@@ -10,11 +7,11 @@ export class Candidate {
     firstName: string;
     lastName: string;
     email: string;
-    phone?: string;
-    address?: string;
-    education: Education[];
-    workExperience: WorkExperience[];
-    resumes: Resume[];
+    phone: string;
+    address: string;
+    education: any[];
+    workExperience: any[];
+    resumes: any[];
 
     constructor(data: any) {
         this.id = data.id;
@@ -29,93 +26,31 @@ export class Candidate {
     }
 
     async save() {
-        const candidateData: any = {};
+        const candidateData = {
+            firstName: this.firstName,
+            lastName: this.lastName,
+            email: this.email,
+            phone: this.phone,
+            address: this.address
+        };
 
-        // Solo añadir al objeto candidateData los campos que no son undefined
-        if (this.firstName !== undefined) candidateData.firstName = this.firstName;
-        if (this.lastName !== undefined) candidateData.lastName = this.lastName;
-        if (this.email !== undefined) candidateData.email = this.email;
-        if (this.phone !== undefined) candidateData.phone = this.phone;
-        if (this.address !== undefined) candidateData.address = this.address;
-
-        // Añadir educations si hay alguna para añadir
-        if (this.education.length > 0) {
-            candidateData.educations = {
-                create: this.education.map(edu => ({
-                    institution: edu.institution,
-                    title: edu.title,
-                    startDate: edu.startDate,
-                    endDate: edu.endDate
-                }))
-            };
-        }
-
-        // Añadir workExperiences si hay alguna para añadir
-        if (this.workExperience.length > 0) {
-            candidateData.workExperiences = {
-                create: this.workExperience.map(exp => ({
-                    company: exp.company,
-                    position: exp.position,
-                    description: exp.description,
-                    startDate: exp.startDate,
-                    endDate: exp.endDate
-                }))
-            };
-        }
-
-        // Añadir resumes si hay alguno para añadir
-        if (this.resumes.length > 0) {
-            candidateData.resumes = {
-                create: this.resumes.map(resume => ({
-                    filePath: resume.filePath,
-                    fileType: resume.fileType
-                }))
-            };
-        }
-
-        if (this.id) {
-            // Actualizar un candidato existente
-            try {
+        try {
+            if (this.id) {
                 return await prisma.candidate.update({
                     where: { id: this.id },
                     data: candidateData
                 });
-            } catch (error: any) {
-                console.log(error);
-                if (error instanceof Prisma.PrismaClientInitializationError) {
-                    // Database connection error
-                    throw new Error('No se pudo conectar con la base de datos. Por favor, asegúrese de que el servidor de base de datos esté en ejecución.');
-                } else if (error.code === 'P2025') {
-                    // Record not found error
-                    throw new Error('No se pudo encontrar el registro del candidato con el ID proporcionado.');
-                } else {
-                    throw error;
-                }
-            }
-        } else {
-            // Crear un nuevo candidato
-            try {
-                const result = await prisma.candidate.create({
+            } else {
+                return await prisma.candidate.create({
                     data: candidateData
                 });
-                return result;
-            } catch (error: any) {
-                if (error instanceof Prisma.PrismaClientInitializationError) {
-                    // Database connection error
-                    throw new Error('No se pudo conectar con la base de datos. Por favor, asegúrese de que el servidor de base de datos esté en ejecución.');
-                } else {
-                    throw error;
-                }
             }
+        } catch (error: any) {
+            if (error.code === 'P2002') {
+                throw new Error('The email already exists in the database');
+            }
+            throw error;
         }
-    }
-
-    static async findOne(id: number): Promise<Candidate | null> {
-        const data = await prisma.candidate.findUnique({
-            where: { id: id }
-        });
-        if (!data) return null;
-        return new Candidate(data);
     }
 }
 
